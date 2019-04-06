@@ -1,0 +1,63 @@
+%%% -------------------------------------------------------------------
+%%% Author  : uabjle
+%%% Description : dbase using dets 
+%%%
+%%% Created : 10 dec 2012
+%%% -------------------------------------------------------------------
+-module(repo_ets).
+
+
+
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+-include("infra_kube/repo/src/repo_local.hrl").
+
+
+%% --------------------------------------------------------------------
+%% External exports
+-compile(export_all).
+%% ====================================================================
+%% External functions
+%% ====================================================================
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+
+
+init_repo_table()->
+    Reply=case ets:info(?REPO_TABLE) of
+	      undefined->
+		  ets:new(?REPO_TABLE,[set,named_table,public]);
+	      _->
+		  ets:delete(?REPO_TABLE),
+		  ets:new(?REPO_TABLE,[set,named_table,public])
+	  end, 
+    Reply.
+     
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+
+update_josca(FileName,JoscaInfo)->
+    ets:insert(?REPO_TABLE,{FileName,JoscaInfo}).
+
+delete_josca(FileName,JoscaInfo)->
+    ets:delete_object(?REPO_TABLE,{FileName,JoscaInfo}).
+
+read_josca_info(FileName)->
+    ets:lookup(?REPO_TABLE,FileName).
+
+update_loadmodule(ServiceId,ModuleList)->
+    ets:insert(?REPO_TABLE,{ServiceId,ModuleList}).
+
+delete_loadmodule(ServiceId,ModuleList)->
+    ets:delete_object(?REPO_TABLE,{ServiceId,ModuleList}).
+
+get_loadmodules(ServiceId)->
+    ets:lookup(?REPO_TABLE,ServiceId).

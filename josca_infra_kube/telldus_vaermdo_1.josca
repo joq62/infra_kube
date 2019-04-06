@@ -1,0 +1,17 @@
+{specification, telldus_vaermdo_1}.
+{type,service}.
+{description, "Josca file for telldus" }.
+{vsn, "1.0.0" }.
+{exported_services,["vaermdo_main_kitchen_heather_1",
+	            "vaermdo_main_livingroom_heather_1",
+	            "vaermdo_main_entrance_indoor_lamp_1",	
+	            "vaermdo_main_entrance_indoor_lamp_2",
+		    "vaermdo_main_indoor_temp",
+		    "vaermdo_outdoor_temp"		    
+		    ]}.
+{application_id,"telldus"}.
+{num_instances,1}.
+{zone,["stockholm.flat.room_joq.rpi2"]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.

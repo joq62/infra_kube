@@ -1,0 +1,11 @@
+{specification, lib}.
+{type,service}.
+{description, "Josca file for node lib" }.
+{vsn, "1.0.0" }.
+{exported_services,["lib"]}.
+{application_id,"lib"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.

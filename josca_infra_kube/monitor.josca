@@ -1,0 +1,11 @@
+{specification, monitor}.
+{type,service}.
+{description, "Josca file for monitor" }.
+{vsn, "1.0.0" }.
+{exported_services,["monitor"]}.
+{application_id,"monitor"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.

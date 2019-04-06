@@ -1,0 +1,11 @@
+{specification, controller}.
+{type,service}.
+{description, "Josca file for controller" }.
+{vsn, "1.0.0" }.
+{exported_services,["controller"]}.
+{application_id,"controller"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.

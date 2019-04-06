@@ -1,0 +1,144 @@
+%%% -------------------------------------------------------------------
+%%% Author  : uabjle
+%%% Description : dbase using dets 
+%%%
+%%% Created : 10 dec 2012
+%%% -------------------------------------------------------------------
+-module(loader_lib).
+ 
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+-include("infra_kube/loader/src/loader_local.hrl").
+-include("include/loader.hrl").
+%% --------------------------------------------------------------------
+-record(log,
+	{
+	  service,ip_addr,dns_addr,timestamp,type,severity,msg
+	}).
+	  
+-define(LOG(Type,Severity,MsgStr),
+	{
+	  service=application:get_application(),
+	  ip_addr={application:get_env(ip_addr),application:get_env(port)},
+	  dns_addr=application:get_env(dns),
+	  timestamp={date(),time()},
+	  type=Type,
+	  severity=Severity,
+	  msg=MsgStr
+	}
+       ).
+
+%% External exports
+-compile(export_all).
+
+
+%% ====================================================================
+%% External functions
+%% ====================================================================
+test()->
+    {ok,IpAddr}=application:get_env(ip_addr),
+ 
+    Log1=log_init('ERROR',1,"message 1"),
+    Log2=#log?LOG('INFO',1,"test define LOG"),
+    Log3=Log1#log{service=loader_3,ip_addr={IpAddr,60003}},
+	
+    LogMsg=[Log1,Log2],
+    unconsult("test1.log",LogMsg),
+    {ok,L1}=file:consult("test1.log"),
+    io:format("first  ~p~n",[{L1}]),
+    L2=[Log3|L1],
+    unconsult("test1.log",L2),
+    {ok,R2}=file:consult("test1.log"),
+    io:format("second ~p~n",[{R2}]), 
+    R1=[{Log#log.ip_addr,Log#log.type,Log#log.msg}||Log<-R2,'INFO'=:=Log#log.type],
+    io:format("INFO  ~p~n",[R1]),
+  %  io:format("  ~p~n",[LogMsg]),
+    {ok,S}=file:open("write.test",[write,append]),
+    io:format(S,"~p.~n",[Log1]),
+    io:format("write.test  ~p~n",[file:consult("write.test")]),
+    io:format(S,"~p.~n",[Log2]),
+    io:format("write.test  ~p~n",[file:consult("write.test")]),
+    file:close(S),
+    io:format("size=  ~p~n",[filelib:file_size("write.test")]),
+    {ok,S1}=file:open("write.test",[write,append]),
+    io:format(S1,"~p.~n",[Log3]),
+    io:format("write.test  ~p~n",[file:consult("write.test")]),
+    io:format("size=  ~p~n",[filelib:file_size("write.test")]),
+    file:rename("write.test","glurk.test"),
+
+    ok.
+
+glurk()->
+  %  if_dns:call("controller",{controller,function1,Args},timeout),
+  %  if_dns:call("localhost",61234,{controller,function1,Args},timeout),
+  %  ssl_lib:ssl_call("localhost",61234,{controller,function1,Args},timeout),
+  %  kubelet:log('ERROR',1,"message 1"), % cast 
+    ok.
+    
+
+
+log_init(Type,Severity,MsgStr)->
+    {ok,Service}=application:get_application(),
+    {ok,{dns,DnsIp,DnsPort}}=application:get_env(dns),
+    {ok,IpAddr}=application:get_env(ip_addr),
+    {ok,Port}=application:get_env(port),
+    Log=#log{service=Service,ip_addr={IpAddr,Port},dns_addr={DnsIp,DnsPort},
+	      timestamp={date(),time()},type=Type,
+	      severity=1,
+	      msg=MsgStr},
+    Log.
+
+unconsult(File,L)->
+    {ok,S}=file:open(File,write),
+    lists:foreach(fun(X)->
+			  io:format(S,"~p.~n",[X]) end,L),
+    file:close(S).
+			  
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+scratch_computer(KeepDirs)->
+    {ok,Files}=file:list_dir("."),
+    DirsRemove=[Dir||Dir<-Files,
+		     filelib:is_dir(Dir),
+		     false==lists:member(Dir,KeepDirs)],
+    RmResult=[{Dir,os:cmd("rm -rf "++Dir)}||Dir<-DirsRemove],
+    RmResult.
+
+load(GitUrl,ListApplicationLoad)->
+    Files2Load=[GitUrl++?LOADPACKAGE++ApplicationId++".git"||ApplicationId<-ListApplicationLoad],
+    R=[os:cmd("git clone "++LoadFile)||LoadFile<-Files2Load],
+    GitService=GitUrl++?JOSCA++".git",
+    os:cmd("git clone "++GitService),
+    {Files2Load,R}.
+
+
+start([],_,_,_,StartResult)->
+    StartResult;
+start([ApplicationId|T],{NodeIp,NodePort},{DnsIp,DnsPort},GitUrl,Acc)->
+
+    FileName=filename:join([?JOSCA,ApplicationId++".josca"]),
+    case file:consult(FileName) of
+	{error,Err}->
+	    {error,[?MODULE,?LINE,Err,FileName]},
+	    NewAcc=[{error,[?MODULE,?LINE,Err,FileName]}|Acc];
+	{ok,JoscaInfo}->
+	    Application=list_to_atom(ApplicationId),
+	    ok=application:set_env(Application,ip_addr,NodeIp),
+	    ok=application:set_env(Application,port,NodePort),
+	    ok=application:set_env(Application,application_id,ApplicationId),
+	    ok=application:set_env(Application,dns_ip_addr,DnsIp),
+	    ok=application:set_env(Application,dns_port,DnsPort),
+	    {exported_services,ExportedServices}=lists:keyfind(exported_services,1,JoscaInfo),
+	    ok=application:set_env(Application,exported_services,ExportedServices),
+	    ok=application:set_env(Application,git_url,GitUrl),
+
+	    PathR=code:add_path(?LOADPACKAGE++ApplicationId),
+	    R=application:start(Application),
+	    NewAcc=[{R,PathR}|Acc]
+    end,    
+    start(T,{NodeIp,NodePort},{DnsIp,DnsPort},GitUrl,NewAcc).

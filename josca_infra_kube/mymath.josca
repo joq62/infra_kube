@@ -1,0 +1,11 @@
+{specification, mymath}.
+{type,application}.
+{description, "Josca file for mymath app" }.
+{vsn, "1.0.0" }.
+{exported_services,[]}.
+{application_id,"na"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,["adder","subtract","divider","multi"]}.

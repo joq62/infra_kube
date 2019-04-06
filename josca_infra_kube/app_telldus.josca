@@ -1,0 +1,11 @@
+{specification, app_telldus}.
+{type,application}.
+{description, "Josca file for teldus app" }.
+{vsn, "1.0.0" }.
+{exported_services,[]}.
+{application_id,"na"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,["telldus_vaermdo_1"]}. 

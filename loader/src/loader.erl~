@@ -1,0 +1,222 @@
+%%% -------------------------------------------------------------------
+%%% Author  : uabjle
+%%% Description : 
+%%% Pool =[{Pid1,Ref1,Module},{Pid2,Ref2,Module}]
+%%% Created : 10 dec 2012
+%%% -------------------------------------------------------------------
+-module(loader).
+
+-behaviour(gen_server).
+
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+%
+-include("infra_kube/loader/src/loader_local.hrl").
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+%% Define
+%% --------------------------------------------------------------------
+%-define(DEFINE,define).
+%% --------------------------------------------------------------------
+%% --------------------------------------------------------------------
+%% Records
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+
+
+%% External exports -gen_server functions 
+
+-export([restart/0,
+	 start_loader/0,
+	 test/0
+	]).
+-export([start/0,stop/0]).
+
+%% gen_server callbacks
+-export([init/1, handle_call/3,handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+
+%% ====================================================================
+%% External functions
+%% ====================================================================
+start_loader()->
+    R1=application:load(loader),
+    R2=application:start(loader),
+    io:format("loader start result ~p~n",[{R1,R2}]),
+    {R1,R2}.
+    
+start()-> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+stop()-> gen_server:call(?MODULE, {stop},infinity).
+
+%% ====================================================================
+%% Server functions
+%% ====================================================================
+
+restart()-> 
+    gen_server:call(?MODULE, {restart},infinity).
+
+%%----------------------------------------------------------------------
+test()-> 
+    gen_server:call(?MODULE, {test},infinity).
+
+%% --------------------------------------------------------------------
+%% Function: init/1
+%% Description: Initiates the server
+%% Returns: {ok, State}          |
+%%          {ok, State, Timeout} |
+%%          ignore               |
+%%          {stop, Reason}
+%% --------------------------------------------------------------------
+init([]) ->
+    
+    {ok,InitialInfo}=file:consult("kubelet.config"),
+    case lists:keyfind(node_type,1,InitialInfo) of
+	{node_type,system_node}->
+	    loader_lib:init_system_node(InitialInfo);
+	{node_type,worker_node}->
+	    loader_lib:init_system_node(InitialInfo)
+    end,
+    
+    {ip_addr,NodeIp}=lists:keyfind(ip_addr,1,InitialInfo),
+    {port,NodePort}=lists:keyfind(port,1,InitialInfo),
+    {dns,DnsIp,DnsPort}=lists:keyfind(dns,1,InitialInfo),  
+    {init_load_apps,InitLoadApps}=lists:keyfind(init_load_apps,1,InitialInfo),
+    {keep_dirs,KeepDirs}=lists:keyfind(keep_dirs,1,InitialInfo),
+    {git_url,GitUrl}=lists:keyfind(git_url,1,InitialInfo),
+    
+    ok=application:set_env(?MODULE,dns,{dns,DnsIp,DnsPort}),
+    ok=application:set_env(?MODULE,port,NodePort),
+    ok=application:set_env(?MODULE,ip_addr,NodeIp),
+
+    %% Clear computer - remove all dirs except loader
+    %% rm -rf dir
+    %% KEEP_DIRS = dirs that shall not be scratched
+    ScratchResult=loader_lib:scratch_computer(KeepDirs),
+    io:format("~p~n",[{?MODULE,?LINE,ScratchResult}]),
+    %% Read config data from kubelet.config
+    %% main url https://github.com/joqprojects/
+    %% full url https://github.com/joqprojects/service
+    %% Communication to loader via ssh
+    %% pre-loaded services [kubelet,lib, xx]
+    
+    %% download from git hub
+    %% os:cmd("git clone https://github.com/joqprojects/"++"kubelet")
+    %% git clone https://github.com/joqprojects/lib
+    %% git clone https://github.com/joqprojects/xx
+    LoadResult=loader_lib:load(GitUrl,InitLoadApps),
+    io:format("~p~n",[{?MODULE,?LINE,LoadResult}]),
+    %% ok=application:start(kubelet) ....
+    StartResult=loader_lib:start(InitLoadApps,{NodeIp,NodePort},{DnsIp,DnsPort},GitUrl,[]),
+    io:format("Start result  ~p~n",[{?MODULE,?LINE, StartResult}]),
+    io:format("Started Service  ~p~n",[{?MODULE}]),
+    {ok, #state{git_url=GitUrl,init_load_apps=InitLoadApps,keep_dirs=KeepDirs}}.
+
+%% --------------------------------------------------------------------
+%% Function: handle_call/3
+%% Description: Handling call messages
+%% Returns: {reply, Reply, State}          |
+%%          {reply, Reply, State, Timeout} |
+%%          {noreply, State}               |
+%%          {noreply, State, Timeout}      |
+%%          {stop, Reason, Reply, State}   | (terminate/2 is called)
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+
+
+% --------------------------------------------------------------------
+%% Function: stop/0
+%% Description:
+%% 
+%% Returns: non
+%% --------------------------------------------------------------------
+handle_call({restart},_From, State) ->
+    loader_lib:scratch_computer(State#state.keep_dirs),
+    loader_lib:load(State#state.git_url,State#state.init_load_apps),
+    Reply=loader_lib:start(State#state.init_load_apps),
+    {reply, Reply, State};
+
+handle_call({test},_From, State) ->
+    Reply=loader_lib:test(),
+    {reply, Reply, State};
+
+
+handle_call({stop}, _From, State) ->
+    {stop, normal, shutdown_ok, State};
+
+handle_call(Request, From, State) ->
+    Reply = {unmatched_signal,?MODULE,Request,From},
+    {reply, Reply, State}.
+
+%% --------------------------------------------------------------------
+%% Function: handle_cast/2
+%% Description: Handling cast messages
+%% Returns: {noreply, State}          |
+%%          {noreply, State, Timeout} |
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+handle_cast(Msg, State) ->
+    io:format("unmatched match cast ~p~n",[{Msg,?MODULE,time()}]),
+    {noreply, State}.
+
+%% --------------------------------------------------------------------
+%% Function: handle_info/2
+%% Description: Handling all non call/cast messages
+%% Returns: {noreply, State}          |
+%%          {noreply, State, Timeout} |
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+
+handle_info(Info, State) ->
+    io:format("unmatched info ~p~n",[{?MODULE,?LINE,Info}]),
+    {noreply, State}.
+
+%% --------------------------------------------------------------------
+%% Function: terminate/2
+%% Description: Shutdown the server
+%% Returns: any (ignored by gen_server)
+%% --------------------------------------------------------------------
+terminate(_Reason, _State) ->
+    ok.
+
+%% --------------------------------------------------------------------
+%% Func: code_change/3
+%% Purpose: Convert process state when code is changed
+%% Returns: {ok, NewState}
+%% --------------------------------------------------------------------
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+%% --------------------------------------------------------------------
+%%% Internal functions
+%% --------------------------------------------------------------------
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+%% Func: code_change/3
+%% Purpose: Convert process state when code is changed
+%% Returns: {ok, NewState}
+%% --------------------------------------------------------------------
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------

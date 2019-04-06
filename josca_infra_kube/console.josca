@@ -1,0 +1,11 @@
+{specification, console}.
+{type,service}.
+{description, "Josca file for console" }.
+{vsn, "1.0.0" }.
+{exported_services,["console"]}.
+{application_id,"console"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.

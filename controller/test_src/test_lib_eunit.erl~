@@ -1,0 +1,45 @@
+%%% -------------------------------------------------------------------
+%%% Author  : uabjle
+%%% Description : dbase using dets 
+%%%
+%%% Created : 10 dec 2012
+%%% -------------------------------------------------------------------
+-module(test_lib_eunit).
+ 
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+-include_lib("eunit/include/eunit.hrl").
+
+-include("infra_kube/lib/src/lib_local.hrl").
+
+-include("include/kubelet_data.hrl").
+-include("include/dns_data.hrl").
+-include("include/loader.hrl").
+%% --------------------------------------------------------------------
+
+%% External exports
+
+-export([]).
+
+
+%% ====================================================================
+%% External functions
+%% ====================================================================
+%% --------------------------------------------------------------------
+%% Function:init 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
+init_test()->
+    application:start(lib),
+    ok.
+
+
+
+
+
+stop_test()->
+    application:stop(lib),
+    application:unload(lib),
+    ok.

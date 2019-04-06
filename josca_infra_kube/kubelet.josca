@@ -1,0 +1,11 @@
+{specification, kubelet}.
+{type,service}.
+{description, "Josca file for node agent kubelet" }.
+{vsn, "1.0.0" }.
+{exported_services,["kubelet"]}.
+{application_id,"kubelet"}.
+{num_instances,1}.
+{zone,[]}.
+{geo_red,[]}.
+{needed_capabilities,[]}.
+{dependencies ,[]}.
