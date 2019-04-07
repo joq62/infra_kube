@@ -77,7 +77,12 @@ init([]) ->
     ScratchResult=loader_lib:scratch_computer(KeepDirs),
     io:format("~p~n",[{?MODULE,?LINE,ScratchResult}]), 
     
-    StartResult=loader_lib:init_system_node(InitialInfo),
+    StartResult= case lists:keyfind(node_type,1,InitialInfo) of
+		     {node_type,system_node}->
+			 loader_lib:init_system_node(InitialInfo);
+		     {node_type,worker_node}->
+			 loader_lib:init_worker_node(InitialInfo)
+		 end,
      io:format("Start result  ~p~n",[{?MODULE,?LINE, StartResult}]),
 
     {ip_addr,NodeIp}=lists:keyfind(ip_addr,1,InitialInfo),

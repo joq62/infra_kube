@@ -95,22 +95,22 @@ nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,Nodes])
 %% Returns: non
 %% --------------------------------------------------------------------
 campaign(State)->
-%    io:format(" State#state.application_list  ~p~n",[{?MODULE,?LINE,time(),State#state.application_list}]),
+    io:format(" State#state.application_list  ~p~n",[{?MODULE,?LINE,time(),State#state.application_list}]),
     NeededServices=controller_lib:needed_applications(State#state.application_list,State),
-%    io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
+    io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
  
  %   io:format(" AvailableServices  ~p~n",[{?MODULE,?LINE,time(),AvailableServices}]),
 
     StartResult=controller_lib:load_start_services(NeededServices,?WANTED_NUM_INSTANCES,State),
- %   io:format("StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
+    io:format("StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
 
     %keep system services repo, catalog, controller
     {dns,DnsIp,DnsPort}=State#state.dns_addr,
     AvailableServices=if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}), 
-  %  io:format(" AvailableServices  ~p~n",[{?MODULE,?LINE,AvailableServices}]),
+    io:format(" AvailableServices  ~p~n",[{?MODULE,?LINE,AvailableServices}]),
     L1=keep_system_services([?KEEP_SYSTEM_SERVICES],AvailableServices),
     SurplusServices=controller_lib:surplus_services(NeededServices,L1),
-%    io:format(" SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),
+    io:format(" SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),
     _StopResult=controller_lib:stop_applications(SurplusServices,AvailableServices,State),
     controller_lib:nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,State#state.node_list]),
     ok.
@@ -235,34 +235,34 @@ which_services_de_reg([ApplicationId|T],Acc) ->
 %% Returns: non
 %% --------------------------------------------------------------------
 needed_applications(ApplicationList,State)->
-   % io:format(" ApplicationList  ~p~n",[{?MODULE,?LINE,time(),ApplicationList}]),
+    io:format(" ApplicationList  ~p~n",[{?MODULE,?LINE,time(),ApplicationList}]),
     needed_applications(ApplicationList,State,[]).
 
 needed_applications([],_,NeededServices)->
-  %  io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
+    io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
     NeededServices;
-needed_applications([{{AppId,Vsn},JoscaFile}|T],State,Acc)->
- %   io:format(" {{AppId,vsn},JoscaFile}  ~p~n",[{?MODULE,?LINE,time(),{{AppId,Vsn},JoscaFile}}]),
-    {dependencies,ApplicationList}=lists:keyfind(dependencies,1,JoscaFile),
-  %  io:format(" ServiceList ~p~n",[{?MODULE,?LINE,ApplicationList}]),
-    NewAcc=check_applications(ApplicationList,State,Acc),
-  %  io:format(" NewAcc  ~p~n",[{?MODULE,?LINE,time(),NewAcc}]),
+needed_applications([{JoscaFile,JoscaInfo}|T],State,Acc)->
+    io:format(" {JoscaFile,JoscaFile}  ~p~n",[{?MODULE,?LINE,time(),{JoscaFile,JoscaInfo}}]),
+    {dependencies,NeededJoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
+    io:format(" NeededJoscaFiles ~p~n",[{?MODULE,?LINE,NeededJoscaFiles}]),
+    NewAcc=check_applications(NeededJoscaFiles,State,Acc),
+    io:format(" NewAcc  ~p~n",[{?MODULE,?LINE,time(),NewAcc}]),
     needed_applications(T,State,NewAcc).
 
 check_applications([],_,Acc)->
     Acc;
-check_applications([Id|T],State,Acc) ->
-    NewAcc=case josca:start_order(Id,State) of
+check_applications([JoscaFile|T],State,Acc) ->
+    NewAcc=case josca:start_order(JoscaFile,State) of
 	       {error,Err}->
 		   io:format("error~p~n",[{?MODULE,?LINE,Err}]),
 		   Acc;
-	       ApplicationId ->
-		   case lists:member(Id,Acc) of
+	       ServiceId ->
+		   case lists:member(ServiceId,Acc) of
 		       true->
 			   Acc;
 		       false->
 			   %lists:append(Services,Acc)
-			   [ApplicationId|Acc]
+			   [ServiceId|Acc]
 		   end
 	   end,
     check_applications(T,State,NewAcc).
@@ -279,33 +279,36 @@ missing_services(NeededServices,DnsList)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+
 load_start_services(NeededServices,WantedNumInstances,State)->
-  %  io:format(" NeededServices,WantedNumInstances  ~p~n",[{?MODULE,?LINE,NeededServices,WantedNumInstances}]),
+     io:format(" NeededServices,WantedNumInstances  ~p~n",[{?MODULE,?LINE,NeededServices,WantedNumInstances}]),
     %% 1. Collect all service instances
     %% 2. For each service collect allready deployed instances
     %% 3. Remove Nodes that already have deployed the service from available node list 
     %% 4. Calculate how many missing instances there are per service
     %% 5. Start missing instances, based on the updaetd nodelist 
     % 1.
-    {dns,DnsIp,DnsPort}=State#state.dns_addr,
+    io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,kubelet:send("dns",?GetAllInstances())}]),
+
     AllAvailableServices= kubelet:send("dns",?GetAllInstances()),
 
+    io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,AllAvailableServices}]),
     %AllAvailableServices=if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}),
-  %  io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,AllAvailableServices}]),
+  
     % 2.
     AlreadyAvailableServiceInstances=[{ServiceId,DnsInfo}||ServiceId<-NeededServices,
 					       DnsInfo<-AllAvailableServices,
 					       DnsInfo#dns_info.service_id=:=ServiceId],
-   % io:format(" AlreadyAvailableServiceInstances  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances}]),
+    io:format(" AlreadyAvailableServiceInstances  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances}]),
     % 3.
     FilteredAvailableNodeList=get_nodes_deploy_to(NeededServices,AlreadyAvailableServiceInstances,WantedNumInstances,State),
- %   io:format(" FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,time(),FilteredAvailableNodeList}]),
+    io:format(" FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,time(),FilteredAvailableNodeList}]),
     % 4.
     %ServiceNumToStart=calc_num_start(NeededServices,FilteredAvailableNodeList),
     
     % 5.
     StartResult=schedule_start(NeededServices,FilteredAvailableNodeList,WantedNumInstances,[]),
-  %  io:format(" StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
+    io:format(" StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
     
     StartResult.
        

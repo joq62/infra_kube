@@ -110,9 +110,10 @@ init([]) ->
  
     repo_lib:pull_josca(?GIT_JOSCA,?JOSCA_DIR),
     repo_lib:pull_loadmodules(?GIT_LM_INFRA_KUBE,?INFRA_KUBE_DIR),
+    repo_lib:pull_loadmodules(?GIT_LM_APPS_KUBE,?APPS_KUBE_DIR),
 
     spawn(fun()-> local_heart_beat(?HEARTBEAT_INTERVAL) end), 
-    io:format("Service ~p~n",[{?MODULE, 'started ',?LINE}]),
+    io:format("Service ~p~n",[{?MODULE, 'started '}]),
   %  kubelet:send("kubelet",?Register(atom_to_list(?MODULE))),
     {ok, #state{}}.   
     
@@ -157,7 +158,7 @@ handle_call({get_loadmodules,ServiceId}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({heart_beat},_, State) ->
- %   kubelet:send("kubelet",?Register(atom_to_list(?MODULE))),   
+    kubelet:send("kubelet",?Register(atom_to_list(?MODULE))),   
     {reply,ok, State};
 
 handle_call({stop}, _From, State) ->

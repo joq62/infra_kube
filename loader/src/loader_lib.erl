@@ -41,6 +41,14 @@
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
+init_worker_node(InitialInfo)->
+   init_system_node(InitialInfo).
+
+%% --------------------------------------------------------------------
+%% Function: 
+%% Description:
+%% Returns: non
+%% --------------------------------------------------------------------
 init_system_node(InitialInfo)->
 % Clone infra_kube to get system services
     os:cmd("git clone "++?GIT_LM_INFRA_KUBE),

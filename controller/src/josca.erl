@@ -10,6 +10,7 @@
 %% --------------------------------------------------------------------
 %% Include files1
 %% --------------------------------------------------------------------
+-include("interface/if_repo.hrl").
 -include("infra_kube/controller/src/controller_local.hrl").
 -include("include/git.hrl").
 %% --------------------------------------------------------------------
@@ -103,29 +104,31 @@ dependencies(I)->
 %% --------------------------------------------------------------------------
 
 
-start_order(Name,State)->
-    GitUrl=State#state.git_url,
-    GitService=GitUrl++?JOSCA_DIR++".git",
-    os:cmd("git clone "++GitService),
-    FileName=filename:join([?JOSCA_DIR,Name++".josca"]),
-    Result=case file:consult(FileName) of
-	       {error,Err}->
-		   {error,[?MODULE,?LINE,Err,FileName]};
-	       {ok,JoscaInfo}->
-		   Acc=case lists:keyfind(type,1,JoscaInfo) of 
+start_order(JoscaFile,State)->
+    Result= case kubelet:send("repo",?ReadJoscaInfo(JoscaFile)) of
+		[]->
+		    NewState=State,
+			 %if_dns:cast("applog",{applog,log,
+			%			[if_log:init('ERROR',3,["file:consult",FileName,Err])]
+			%		       }),
+		    io:format(" Error  ~p~n",[{?MODULE,?LINE,time(),eexist,JoscaFile}]),
+		    {error,[?MODULE,?LINE,eexist,JoscaFile]};
+		{JoscaFile,JoscaInfo}->
+		    io:format("repo = JoscaFile,JoscaInfo ~p~n",[{?MODULE,?LINE, JoscaFile,JoscaInfo}]),
+		    Acc=case lists:keyfind(type,1,JoscaInfo) of 
 			   {type,application}->
 			       [];
 			   {type,service} ->
-			       {application_id,ApplicationId}=lists:keyfind(application_id,1,JoscaInfo),
-			       ApplicationId
-		       end,
+			       {application_id,ServiceId}=lists:keyfind(application_id,1,JoscaInfo),
+			       [ServiceId]
+			end,
 						% io:format("~p~n",[{?MODULE,?LINE,Acc}]),
-		   {dependencies,JoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
-		   %io:format("~p~n",[{?MODULE,?LINE,JoscaFiles}]),
-		   dfs(JoscaFiles,Acc,State);
-	       Err ->
-		   {error,[?MODULE,?LINE,Err]}
-	   end,
+		    {dependencies,JoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
+		    io:format("~p~n",[{?MODULE,?LINE,JoscaFiles}]),
+		    dfs(JoscaFiles,Acc,State);	  
+		Err->
+		    {error,[?MODULE,?LINE,Err]}
+	    end,
     Result.
 
 

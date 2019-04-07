@@ -35,7 +35,7 @@
 %%---------------------------------------------------------------------
 
 -export([campaign/1,
-	 add/2,remove/2,
+	 add/1,remove/1,
 	 get_all_applications/0,get_all_services/0,
 	 all_nodes/0,
 	 node_register/1,de_node_register/1
@@ -83,10 +83,10 @@ get_all_services()->
     
 %%-----------------------------------------------------------------------
     
-add(AppId,Vsn)->
-    gen_server:call(?MODULE, {add,AppId,Vsn},infinity).  
-remove(AppId,Vsn)->
-    gen_server:call(?MODULE, {remove,AppId,Vsn},infinity). 
+add(JoscaFile)->
+    gen_server:call(?MODULE, {add,JoscaFile},infinity).  
+remove(JoscaFile)->
+    gen_server:call(?MODULE, {remove,JoscaFile},infinity). 
 %%-----------------------------------------------------------------------
 
 
@@ -157,10 +157,10 @@ handle_call({add,JoscaFile}, _From, State) ->
 			%		       }),
 			  io:format(" Error  ~p~n",[{?MODULE,?LINE,time(),eexist,JoscaFile}]),
 			  {error,[?MODULE,?LINE,eexist,JoscaFile]};
-		      [{JoscaFile,JoscaInfo}]->
-		%	  NewAppList=[{JoscaFile,JoscaInfo}|State#state.application_list],
-		%	  NewState=State#state{application_list=NewAppList},
-			  NewState=glurk,
+		      {JoscaFile,JoscaInfo}->
+			  io:format("repo = JoscaFile,JoscaInfo ~p~n",[{?MODULE,?LINE, JoscaFile,JoscaInfo}]),
+			  NewAppList=[{JoscaFile,JoscaInfo}|State#state.application_list],
+			  NewState=State#state{application_list=NewAppList},
 			  ok;
 		      Err ->
 			  NewState=State,
