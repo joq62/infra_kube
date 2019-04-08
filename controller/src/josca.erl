@@ -134,14 +134,14 @@ start_order(JoscaFile,State)->
 
 dfs([],Acc,_)->
     Acc;
-dfs([{Name,Vsn}|T],Acc,State)->
-    FileName=filename:join([?JOSCA_DIR,Name++".josca"]),
-    case file:consult(FileName) of
+dfs([JoscaFile|T],Acc,State)->
+   
+    case  kubelet:send("repo",?ReadJoscaInfo(JoscaFile)) of
 	{error,Err}->
 	    JoscaFiles=[],
 	    Acc1=Acc,
 	    [{error,[?MODULE,?LINE,Err]}|Acc];
-	{ok,JoscaInfo}->
+	{JoscaFile,JoscaInfo}->
 	    case lists:keyfind(type,1,JoscaInfo) of 
 		{type,application}->
 		    Acc1=Acc;

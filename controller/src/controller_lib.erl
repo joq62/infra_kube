@@ -12,6 +12,7 @@
 %% Include files
 %% --------------------------------------------------------------------
 -include("interface/if_dns.hrl").
+-include("interface/if_repo.hrl").
 
 -include("infra_kube/controller/src/controller_local.hrl").
 
@@ -288,7 +289,7 @@ load_start_services(NeededServices,WantedNumInstances,State)->
     %% 4. Calculate how many missing instances there are per service
     %% 5. Start missing instances, based on the updaetd nodelist 
     % 1.
-    io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,kubelet:send("dns",?GetAllInstances())}]),
+  %  io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,kubelet:send("dns",?GetAllInstances())}]),
 
     AllAvailableServices= kubelet:send("dns",?GetAllInstances()),
 
@@ -314,9 +315,7 @@ load_start_services(NeededServices,WantedNumInstances,State)->
        
 
 get_nodes_deploy_to(NeededServices,AlreadyAvailableServiceInstances,WantedNumInstances,State)->
-  %  io:format("AlreadyAvailableServiceInstances,State  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances,State}]),
-    GitJoscaServices=State#state.git_url++?JOSCA_DIR++".git",
-    os:cmd("git clone "++GitJoscaServices),
+    io:format("AlreadyAvailableServiceInstances,State  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances,State}]),
     FilteredAvailableNodeList=get_nodes_deploy_to(NeededServices,AlreadyAvailableServiceInstances,WantedNumInstances,State,[]),
     FilteredAvailableNodeList.
 
@@ -324,19 +323,18 @@ get_nodes_deploy_to([],_,_,_,FilteredAvailableNodeList)->
   %  io:format("FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,FilteredAvailableNodeList}]),
     FilteredAvailableNodeList;
 
-get_nodes_deploy_to([ServiceIdToDeploy|T],AlreadyAvailableServiceInstances,WantedNumInstances,State,Acc)->
-    FileName=filename:join([?JOSCA_DIR,ServiceIdToDeploy++".josca"]),
- %  io:format(" FileName  ~p~n",[{?MODULE,?LINE,time(),FileName}]),
-    case file:consult(FileName) of
+get_nodes_deploy_to([JoscaFile|T],AlreadyAvailableServiceInstances,WantedNumInstances,State,Acc)->
+    case kubelet:send("repo",?ReadJoscaInfo(JoscaFile)) of
 	{error,Err}->
 	    NewAcc=[{error,Err}|Acc],
 	    io:format("~p~n",[{?MODULE,?LINE,'error',Err}]),
 	    {error,[?MODULE,?LINE,Err]};
-	{ok,JoscaInfo}->
+	{JoscaFile,JoscaInfo}->
 	   %  io:format("JoscaInfo  ~p~n",[{?MODULE,?LINE,JoscaInfo}]),
 	    {zone,WantedZone}=lists:keyfind(zone,1,JoscaInfo),
 	    {needed_capabilities,WantedCapabilities}=lists:keyfind(needed_capabilities,1,JoscaInfo),
 	    {num_instances,NumWantedInstances}=lists:keyfind(num_instances,1,JoscaInfo),
+	    {application_id,ServiceIdToDeploy}=lists:keyfind(application_id,1,JoscaInfo),
 	    AllNodesFullfilledNeeds=get_nodes_fullfills_needs(WantedZone,WantedCapabilities,State#state.node_list),
 	    
 	    ExistingServiceInstances=[{DnsInfo#dns_info.ip_addr,DnsInfo#dns_info.port}||{ServiceId,DnsInfo}<-AlreadyAvailableServiceInstances,
