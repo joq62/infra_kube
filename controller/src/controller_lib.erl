@@ -242,9 +242,15 @@ needed_applications([],_,NeededServices)->
     NeededServices;
 needed_applications([{JoscaFile,JoscaInfo}|T],State,Acc)->
     io:format(" {JoscaFile,JoscaFile}  ~p~n",[{?MODULE,?LINE,time(),{JoscaFile,JoscaInfo}}]),
-    {dependencies,NeededJoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
-    io:format(" NeededJoscaFiles ~p~n",[{?MODULE,?LINE,NeededJoscaFiles}]),
-    NewAcc=check_applications(NeededJoscaFiles,State,Acc),
+   % {dependencies,NeededJoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
+    NewAcc=case lists:keyfind(dependencies,1,JoscaInfo) of
+	       []->
+		   {application_id,ServiceId}=lists:keyfind(application_id,1,JoscaInfo),
+		   [ServiceId|Acc];
+	       {dependencies,NeededJoscaFiles}->
+		   io:format(" NeededJoscaFiles ~p~n",[{?MODULE,?LINE,NeededJoscaFiles}]),
+		   check_applications(NeededJoscaFiles,State,Acc)
+	   end,
     io:format(" NewAcc  ~p~n",[{?MODULE,?LINE,time(),NewAcc}]),
     needed_applications(T,State,NewAcc).
 
