@@ -170,25 +170,24 @@ de_node_register(KubeletInfo, State) ->
 stop_applications([],DnsList,_State)->
     DnsList;
 stop_applications([ApplicationId|T],DnsList,State)->
- %   io:format(" ApplicationId ~p~n",[{?MODULE,?LINE,ApplicationId}]),
+    io:format(" ApplicationId ~p~n",[{?MODULE,?LINE,ApplicationId}]),
     ListWithIp=[{DnsInfo#dns_info.ip_addr,DnsInfo#dns_info.port,
 		 DnsInfo#dns_info.service_id,DnsInfo}||DnsInfo<-DnsList,
 						       ApplicationId=:=DnsInfo#dns_info.service_id],
   %  io:format(" stop_services ListWithIp  ~p~n",[{?MODULE,?LINE,ListWithIp}]),
-    {dns,DnsIp,DnsPort}=State#state.dns_addr,
-    _StopResult=do_stop(ListWithIp,{DnsIp,DnsPort},[]),
+    _StopResult=do_stop(ListWithIp,[]),
     NewDnsList=[Y_DnsInfo||Y_DnsInfo<-DnsList,
 			   false==(ApplicationId=:=Y_DnsInfo#dns_info.service_id)],
     stop_applications(T,NewDnsList,State).
 
-do_stop([],_,StopResult)->
+do_stop([],StopResult)->
     StopResult;
 
 %% Glurk shoud be udated with kublete send and zone 
-do_stop([{IpAddr,Port,ApplicationId,_DnsInfo}|T],{DnsIp,DnsPort},Acc)->
+do_stop([{IpAddr,Port,ApplicationId,_DnsInfo}|T],Acc)->
     Stop=ssl_lib:ssl_call([{IpAddr,Port}],{kubelet,stop_service,[ApplicationId]}),
     NewAcc=[{ApplicationId,{IpAddr,Port},Stop}|Acc],
-    do_stop(T,{DnsIp,DnsPort},NewAcc).
+    do_stop(T,NewAcc).
     
 						  
 
@@ -197,33 +196,33 @@ do_stop([{IpAddr,Port,ApplicationId,_DnsInfo}|T],{DnsIp,DnsPort},Acc)->
 %% Description:
 %% Returns: non
 %% --------------------------------------------------------------------
-which_to_stop(AppId,Vsn,NewAppList,JoscaInfo,State)->
+which_to_stop(JoscaFile,NewAppList,JoscaInfo,State)->
     AllApplications=rpc:call(node(),controller_lib,needed_applications,[NewAppList,State]),
-  % io:format(" AllApplications  ~p~n",[{?MODULE,?LINE,AllApplications}]),
+   io:format(" AllApplications  ~p~n",[{?MODULE,?LINE,AllApplications}]),
 
 %   Get which applications that needs to be removed
-    AppIdServices=rpc:call(node(),controller_lib,needed_applications,[[{{AppId,Vsn},JoscaInfo}],State]),
+    AppIdServices=rpc:call(node(),controller_lib,needed_applications,[[{JoscaFile,JoscaInfo}],State]),
 
- %  io:format(" AppIdServices  ~p~n",[{?MODULE,?LINE,AppIdServices}]),
+   io:format(" AppIdServices  ~p~n",[{?MODULE,?LINE,AppIdServices}]),
     
     ApplicationToStop=[X_ApplicationId||X_ApplicationId<-AppIdServices,
 					false==lists:member(X_ApplicationId,AllApplications)],
-    ServicesToDeRegister=which_services_de_reg(ApplicationToStop,[]),
-%    io:format(" ApplicationToStop  ~p~n",[{?MODULE,?LINE,ApplicationToStop}]),
+   % ServicesToDeRegister=which_services_de_reg(ApplicationToStop,[]),
+   % io:format(" ApplicationToStop  ~p~n",[{?MODULE,?LINE,ApplicationToStop}]),
   %  io:format(" ApplicationToStop,ServicesToDeRegister  ~p~n",[{?MODULE,?LINE,ApplicationToStop,ServicesToDeRegister}]),
-    {ApplicationToStop,ServicesToDeRegister}.
+    ApplicationToStop.
 
 
 which_services_de_reg([],ServicesToDeRegister)->
     ServicesToDeRegister;
-which_services_de_reg([ApplicationId|T],Acc) ->
-     FileName=filename:join([?JOSCA_DIR,ApplicationId++".josca"]),
-    case file:consult(FileName) of
+which_services_de_reg([ServiceId|T],Acc) ->
+
+    case kubelet:send("repo",?ReadJoscaInfo(ServiceId++".josca")) of
 	{error,Err}->
 	   % {error,[?MODULE,?LINE,Err,FileName]},
-	    io:format("~p~n",[{error,[?MODULE,?LINE,Err,FileName]}]),
-	    NewAcc=[{error,[?MODULE,?LINE,Err,FileName]}|Acc];
-	{ok,JoscaInfo}->
+	    io:format("~p~n",[{error,[?MODULE,?LINE,Err,ServiceId]}]),
+	    NewAcc=[{error,[?MODULE,?LINE,Err,ServiceId]}|Acc];
+	{JoscaFile,JoscaInfo}->
 	    {exported_services,ExportedServices}=lists:keyfind(exported_services,1,JoscaInfo),
 	    NewAcc=lists:append(ExportedServices,Acc)
     end,
@@ -245,7 +244,7 @@ needed_applications([{JoscaFile,JoscaInfo}|T],State,Acc)->
     io:format(" {JoscaFile,JoscaFile}  ~p~n",[{?MODULE,?LINE,time(),{JoscaFile,JoscaInfo}}]),
    % {dependencies,NeededJoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
     NewAcc=case lists:keyfind(dependencies,1,JoscaInfo) of
-	       []->
+	       {dependencies,[]}->
 		   {application_id,ServiceId}=lists:keyfind(application_id,1,JoscaInfo),
 		   [ServiceId|Acc];
 	       {dependencies,NeededJoscaFiles}->
@@ -328,14 +327,14 @@ get_nodes_deploy_to([],_,_,_,FilteredAvailableNodeList)->
   %  io:format("FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,FilteredAvailableNodeList}]),
     FilteredAvailableNodeList;
 
-get_nodes_deploy_to([JoscaFile|T],AlreadyAvailableServiceInstances,WantedNumInstances,State,Acc)->
-    case kubelet:send("repo",?ReadJoscaInfo(JoscaFile)) of
+get_nodes_deploy_to([ServiceId|T],AlreadyAvailableServiceInstances,WantedNumInstances,State,Acc)->
+    case kubelet:send("repo",?ReadJoscaInfo(ServiceId++".josca")) of
 	{error,Err}->
 	    NewAcc=[{error,Err}|Acc],
 	    io:format("~p~n",[{?MODULE,?LINE,'error',Err}]),
 	    {error,[?MODULE,?LINE,Err]};
 	{JoscaFile,JoscaInfo}->
-	   %  io:format("JoscaInfo  ~p~n",[{?MODULE,?LINE,JoscaInfo}]),
+	     io:format("JoscaInfo  ~p~n",[{?MODULE,?LINE,JoscaInfo}]),
 	    {zone,WantedZone}=lists:keyfind(zone,1,JoscaInfo),
 	    {needed_capabilities,WantedCapabilities}=lists:keyfind(needed_capabilities,1,JoscaInfo),
 	    {num_instances,NumWantedInstances}=lists:keyfind(num_instances,1,JoscaInfo),

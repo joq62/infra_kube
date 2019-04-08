@@ -191,12 +191,12 @@ handle_call({remove,JoscaFile}, _From, State)->
 		  AvailableServices= kubelet:send("dns",?GetAllInstances()),
 		
     % Get applications that shall be removed and services that shall be de_registered  
-		  {ApplicationToStop,ServicesToDeRegister}=controller_lib:which_to_stop(JoscaInfo,NewAppList,JoscaInfo,State),
-		  
+		  ApplicationToStop=controller_lib:which_to_stop(JoscaInfo,NewAppList,JoscaInfo,State),
+		  io:format(" ApplicationToStop    ~p~n",[{?MODULE,?LINE,ApplicationToStop}]),
 		  NewDnsList=rpc:call(node(),controller_lib,stop_applications,[ApplicationToStop,AvailableServices,State]),
     %  io:format(" IpAddr,Port,ServiceId Stop    ~p~n",[{?MODULE,?LINE,Stop,IpAddr,Port,ServiceId}]),
 		  
-		  DnsInfoServicesToDeRegister=[DnsInfo||DnsInfo<-AvailableServices,ServiceId<-ServicesToDeRegister,
+		  DnsInfoServicesToDeRegister=[DnsInfo||DnsInfo<-AvailableServices,ServiceId<-ApplicationToStop,
 							DnsInfo#dns_info.service_id==ServiceId],
 		  
 		  io:format("DnsInfoServicesToDeRegister  ~p~n",[{?MODULE,?LINE,DnsInfoServicesToDeRegister}]),
@@ -239,7 +239,7 @@ handle_call({heart_beat},_,State) ->
 
 handle_call({campaign,Interval},_, State) ->
    
-    Msg=if_log:init('INFO',7,"campaign"),
+  %  Msg=if_log:init('INFO',7,"campaign"),
  %   if_dns:cast("applog",{applog,log,[Msg]},{DnsIp,DnsPort}),
     Reply=rpc:call(node(),controller_lib,campaign,[State]),
     spawn(fun()-> do_campaign(Interval) end),

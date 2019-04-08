@@ -62,8 +62,8 @@ load_start_service(ServiceId)->
 		   {error,[?MODULE,?LINE,ServiceId,Err]};
 	       ok->
 		   case kubelet:send("repo",?GetLoadmodules(ServiceId)) of
-		       [{ServiceId,ModuleList}]->
-			   WriteFileResult=[{FileName,file:write_file(filename:join(ServiceId,FileName,Binary))}||{FileName,Binary}<-ModuleList],
+		       {ServiceId,ModuleList}->
+			   WriteFileResult=[{FileName,file:write_file(filename:join(ServiceId,FileName),Binary)}||{FileName,Binary}<-ModuleList],
 			   case write_result(WriteFileResult,ok) of
 			       {error,Err} ->
 				   {error,[?MODULE,?LINE,ServiceId,Err,WriteFileResult]};
@@ -74,7 +74,9 @@ load_start_service(ServiceId)->
 				   code:add_path(ServiceId),
 				   application:start(Application),
 				   ok
-			   end
+			   end;
+		       Err ->
+			   {error,[?MODULE,?LINE,ServiceId,Err]}
 		   end
 	   end,
     Result.    
@@ -83,7 +85,7 @@ write_result([],ok)->
     ok;
 write_result([],{error,Err}) ->
     {error,Err};
-write_result([R|T],_) ->
+write_result([{_,R}|T],_) ->
     write_result(T,R).
 
 %% --------------------------------------------------------------------
@@ -101,7 +103,8 @@ stop_unload_service(ServiceId)->
     Application=list_to_atom(ServiceId),
     R1=application:stop(Application),
     R2=application:unload(Application),    
-    os:cmd("rm -rf ServiceId"),
+    os:cmd("rm -rf "++ServiceId),
+    io:format("~p~n",[{?MODULE,?LINE,ServiceId}]),
     code:del_path(ServiceId),
     {R1,R2}.
     
