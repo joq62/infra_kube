@@ -94,6 +94,7 @@ nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,Nodes])
 %% Returns: non
 %% --------------------------------------------------------------------
 campaign(State)->
+    io:format(" Pungkula  ~p~n",[{?MODULE,?LINE}]),
     io:format(" State#state.application_list  ~p~n",[{?MODULE,?LINE,time(),State#state.application_list}]),
     NeededServices=controller_lib:needed_applications(State#state.application_list,State),
     io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
