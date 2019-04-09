@@ -147,7 +147,7 @@ dfs([JoscaFile|T],Acc,State)->
 		{type,application}->
 		    Acc1=Acc;
 		{type,service} ->
-		    {exported_services,[{ServiceId}]}=lists:keyfind(exported_services,1,JoscaInfo),
+		     {application_id,ServiceId}=lists:keyfind(application_id,1,JoscaInfo),
 		    Acc1=[{ServiceId}|Acc]
 	    end,
 	    {dependencies,JoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo)

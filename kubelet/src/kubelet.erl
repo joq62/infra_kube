@@ -277,24 +277,29 @@ handle_cast({heart_beat},State) ->
     kubelet:send("controller",?NodeRegister(State#state.kubelet_info)),
 
  %   if_dns:cast("controller",{controller,node_register,[State#state.kubelet_info]},{DnsIp,DnsPort}),
-
-    AvailableServices=if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}), 
-    % Convert DnsInfo -> ServiceInfo
-    FilteredServices=[{DnsInfo#dns_info.zone,DnsInfo#dns_info.service_id,DnsInfo#dns_info.ip_addr,DnsInfo#dns_info.port}||DnsInfo<-AvailableServices],
-    LocalServiceList=ets:tab2list(?DNS_TABLE),
     
-    {Added,Removed}=kubelet_dns:diff_dns(LocalServiceList,FilteredServices),
-    case Added of
-	[]->
-	    ok;
-	Added->
-	    [kubelet_dns:update_dns_table(ServiceInfo)||ServiceInfo<-Added]
-    end,
-    case Removed of
-	[]->
-	    ok;
-	Removed->
-	    [kubelet_dns:delete(ServiceInfo)||ServiceInfo<-Removed]
+ %   case kubelet:send("dns",?GetAllInstances()) of
+    case if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}) of
+	{error,Err}->
+	    FilteredServices=State#state.service_list,
+	    io:format("error  ~p~n",[{?MODULE,?LINE,error,Err}]);
+	AvailableServices->
+	      % Convert DnsInfo -> ServiceInfo
+	    FilteredServices=[{DnsInfo#dns_info.zone,DnsInfo#dns_info.service_id,DnsInfo#dns_info.ip_addr,DnsInfo#dns_info.port}||DnsInfo<-AvailableServices],
+	    LocalServiceList=ets:tab2list(?DNS_TABLE),
+	    {Added,Removed}=kubelet_dns:diff_dns(LocalServiceList,FilteredServices),
+	    case Added of
+		[]->
+		    ok;
+		Added->
+		    [kubelet_dns:update_dns_table(ServiceInfo)||ServiceInfo<-Added]
+	    end,
+	    case Removed of
+		[]->
+		    ok;
+		Removed->
+		    [kubelet_dns:delete(ServiceInfo)||ServiceInfo<-Removed]
+	    end
     end,
  %   io:format("Added  ~p~n",[{?MODULE,?LINE,Added}]),
   %  io:format("Removed  ~p~n",[{?MODULE,?LINE,Removed}]),

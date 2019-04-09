@@ -39,7 +39,7 @@
 %% --------------------------------------------------------------------
 nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,Nodes])->
     % Availible services dns info  ServiceId, Vsn , IpAddr , Port
-  %  io:format("Nice print:AvailableServices ~n"),
+    io:format("Nice print:AvailableServices ~n"),
     
    io:format("~n"),  
     io:format("**********************>>  "),
@@ -94,23 +94,24 @@ nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,Nodes])
 %% Returns: non
 %% --------------------------------------------------------------------
 campaign(State)->
-    io:format(" Pungkula  ~p~n",[{?MODULE,?LINE}]),
-    io:format(" State#state.application_list  ~p~n",[{?MODULE,?LINE,time(),State#state.application_list}]),
+   % io:format(" State#state.application_list  ~p~n",[{?MODULE,?LINE,time(),State#state.application_list}]),
     NeededServices=controller_lib:needed_applications(State#state.application_list,State),
-    io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
+  %  io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
  
  %   io:format(" AvailableServices  ~p~n",[{?MODULE,?LINE,time(),AvailableServices}]),
 
     StartResult=controller_lib:load_start_services(NeededServices,?WANTED_NUM_INSTANCES,State),
-    io:format("StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
+  %  io:format("StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
 
     %keep system services repo, catalog, controller
-    {dns,DnsIp,DnsPort}=State#state.dns_addr,
-    AvailableServices=if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}), 
-    io:format(" AvailableServices  ~p~n",[{?MODULE,?LINE,AvailableServices}]),
+   % {dns,DnsIp,DnsPort}=State#state.dns_addr,
+%    AvailableServices=if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}), 
+   % AvailableServices= ssl_lib:ssl_call([{DnsIp,DnsPort}],{dns,get_all_instances,[]}),
+    AvailableServices=kubelet:send("dns",?GetAllInstances()),
+   % io:format(" AvailableServices  ~p~n",[{?MODULE,?LINE,AvailableServices}]),
     L1=keep_system_services([?KEEP_SYSTEM_SERVICES],AvailableServices),
     SurplusServices=controller_lib:surplus_services(NeededServices,L1),
-    io:format(" SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),
+  %  io:format(" SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),
     _StopResult=controller_lib:stop_applications(SurplusServices,AvailableServices,State),
     controller_lib:nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,State#state.node_list]),
     ok.
@@ -128,7 +129,7 @@ surplus_services([],SurplusServices)->
     SurplusServices;
 %surplus_services([X_DnsInfo|T],Acc)->
 surplus_services(X,Acc)->
-  %  io:format(" X,Acc  ~p~n",[{?MODULE,?LINE,X,Acc}]),  
+    io:format("surplus services  X,Acc  ~p~n",[{?MODULE,?LINE,X,Acc}]),  
     [X_DnsInfo|T]=X,
  %   io:format(" X_DnsInfo,Acc  ~p~n",[{?MODULE,?LINE,X_DnsInfo,Acc}]),
     NewAcc=[DnsInfo||DnsInfo<-Acc,
@@ -234,24 +235,24 @@ which_services_de_reg([ServiceId|T],Acc) ->
 %% Returns: non
 %% --------------------------------------------------------------------
 needed_applications(ApplicationList,State)->
-    io:format(" ApplicationList  ~p~n",[{?MODULE,?LINE,time(),ApplicationList}]),
+%    io:format(" ApplicationList  ~p~n",[{?MODULE,?LINE,time(),ApplicationList}]),
     needed_applications(ApplicationList,State,[]).
 
 needed_applications([],_,NeededServices)->
-    io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
+ %   io:format(" NeededServices  ~p~n",[{?MODULE,?LINE,time(),NeededServices}]),
     NeededServices;
 needed_applications([{JoscaFile,JoscaInfo}|T],State,Acc)->
-    io:format(" {JoscaFile,JoscaFile}  ~p~n",[{?MODULE,?LINE,time(),{JoscaFile,JoscaInfo}}]),
+ %   io:format(" {JoscaFile,JoscaFile}  ~p~n",[{?MODULE,?LINE,time(),{JoscaFile,JoscaInfo}}]),
    % {dependencies,NeededJoscaFiles}=lists:keyfind(dependencies,1,JoscaInfo),
     NewAcc=case lists:keyfind(dependencies,1,JoscaInfo) of
 	       {dependencies,[]}->
 		   {application_id,ServiceId}=lists:keyfind(application_id,1,JoscaInfo),
 		   [ServiceId|Acc];
 	       {dependencies,NeededJoscaFiles}->
-		   io:format(" NeededJoscaFiles ~p~n",[{?MODULE,?LINE,NeededJoscaFiles}]),
+%		   io:format(" NeededJoscaFiles ~p~n",[{?MODULE,?LINE,NeededJoscaFiles}]),
 		   check_applications(NeededJoscaFiles,State,Acc)
 	   end,
-    io:format(" NewAcc  ~p~n",[{?MODULE,?LINE,time(),NewAcc}]),
+ %   io:format(" NewAcc  ~p~n",[{?MODULE,?LINE,time(),NewAcc}]),
     needed_applications(T,State,NewAcc).
 
 check_applications([],_,Acc)->
@@ -261,16 +262,23 @@ check_applications([JoscaFile|T],State,Acc) ->
 	       {error,Err}->
 		   io:format("error~p~n",[{?MODULE,?LINE,Err}]),
 		   Acc;
-	       ServiceId ->
-		   case lists:member(ServiceId,Acc) of
-		       true->
-			   Acc;
-		       false->
-			   %lists:append(Services,Acc)
-			   [ServiceId|Acc]
-		   end
+	       ServiceIdList ->
+		   remove_already_existed(ServiceIdList,Acc,[])
 	   end,
     check_applications(T,State,NewAcc).
+
+
+remove_already_existed([],_NeededServices,Filtered)->
+    Filtered;
+remove_already_existed([ServiceId|T],NeededServices,Acc)->
+    case lists:member(ServiceId,NeededServices) of
+	true->
+	    NewAcc=Acc;
+	false->
+	    NewAcc=[ServiceId|Acc]
+    end,
+remove_already_existed(T,NeededServices,NewAcc).    
+						 
 
 
 
@@ -297,44 +305,45 @@ load_start_services(NeededServices,WantedNumInstances,State)->
 
     AllAvailableServices= kubelet:send("dns",?GetAllInstances()),
 
-    io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,AllAvailableServices}]),
+  %  io:format(" AllAvailableServices  ~p~n",[{?MODULE,?LINE,AllAvailableServices}]),
     %AllAvailableServices=if_dns:call("dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}),
   
     % 2.
     AlreadyAvailableServiceInstances=[{ServiceId,DnsInfo}||ServiceId<-NeededServices,
 					       DnsInfo<-AllAvailableServices,
 					       DnsInfo#dns_info.service_id=:=ServiceId],
-    io:format(" AlreadyAvailableServiceInstances  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances}]),
+%    io:format(" AlreadyAvailableServiceInstances  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances}]),
     % 3.
     FilteredAvailableNodeList=get_nodes_deploy_to(NeededServices,AlreadyAvailableServiceInstances,WantedNumInstances,State),
-    io:format(" FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,time(),FilteredAvailableNodeList}]),
+ %   io:format(" FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,time(),FilteredAvailableNodeList}]),
     % 4.
     %ServiceNumToStart=calc_num_start(NeededServices,FilteredAvailableNodeList),
     
     % 5.
     StartResult=schedule_start(NeededServices,FilteredAvailableNodeList,WantedNumInstances,[]),
-    io:format(" StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
+ %   io:format(" StartResult  ~p~n",[{?MODULE,?LINE,time(),StartResult}]),
     
     StartResult.
        
 
 get_nodes_deploy_to(NeededServices,AlreadyAvailableServiceInstances,WantedNumInstances,State)->
-    io:format("AlreadyAvailableServiceInstances,State  ~p~n",[{?MODULE,?LINE,AlreadyAvailableServiceInstances,State}]),
+ %   io:format("NeededServices,AlreadyAvailableServiceInstances  ~p~n",[{?MODULE,?LINE,NeededServices,AlreadyAvailableServiceInstances}]),
     FilteredAvailableNodeList=get_nodes_deploy_to(NeededServices,AlreadyAvailableServiceInstances,WantedNumInstances,State,[]),
     FilteredAvailableNodeList.
 
 get_nodes_deploy_to([],_,_,_,FilteredAvailableNodeList)->
-  %  io:format("FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,FilteredAvailableNodeList}]),
+ %   io:format("FilteredAvailableNodeList  ~p~n",[{?MODULE,?LINE,FilteredAvailableNodeList}]),
     FilteredAvailableNodeList;
 
 get_nodes_deploy_to([ServiceId|T],AlreadyAvailableServiceInstances,WantedNumInstances,State,Acc)->
+ %   io:format("ServiceId  ~p~n",[{?MODULE,?LINE,ServiceId}]),
     case kubelet:send("repo",?ReadJoscaInfo(ServiceId++".josca")) of
 	{error,Err}->
 	    NewAcc=[{error,Err}|Acc],
 	    io:format("~p~n",[{?MODULE,?LINE,'error',Err}]),
 	    {error,[?MODULE,?LINE,Err]};
 	{JoscaFile,JoscaInfo}->
-	     io:format("JoscaInfo  ~p~n",[{?MODULE,?LINE,JoscaInfo}]),
+%	     io:format("JoscaInfo  ~p~n",[{?MODULE,?LINE,JoscaInfo}]),
 	    {zone,WantedZone}=lists:keyfind(zone,1,JoscaInfo),
 	    {needed_capabilities,WantedCapabilities}=lists:keyfind(needed_capabilities,1,JoscaInfo),
 	    {num_instances,NumWantedInstances}=lists:keyfind(num_instances,1,JoscaInfo),

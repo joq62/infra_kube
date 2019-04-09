@@ -70,49 +70,20 @@ test()->
 %%          {stop, Reason}
 %% --------------------------------------------------------------------
 init([]) ->
-    
     {ok,InitialInfo}=file:consult("kubelet.config"),
     
-    {keep_dirs,KeepDirs}=lists:keyfind(keep_dirs,1,InitialInfo),
-    ScratchResult=loader_lib:scratch_computer(KeepDirs),
-    io:format("~p~n",[{?MODULE,?LINE,ScratchResult}]), 
-    
     StartResult= case lists:keyfind(node_type,1,InitialInfo) of
-		     {node_type,system_node}->
+		     {node_type,system_node}-> 
 			 loader_lib:init_system_node(InitialInfo);
 		     {node_type,worker_node}->
 			 loader_lib:init_worker_node(InitialInfo)
 		 end,
-     io:format("Start result  ~p~n",[{?MODULE,?LINE, StartResult}]),
+   %  io:format("Start result  ~p~n",[{?MODULE,?LINE, StartResult}]),
 
     {ip_addr,NodeIp}=lists:keyfind(ip_addr,1,InitialInfo),
     {port,NodePort}=lists:keyfind(port,1,InitialInfo),
     {dns,DnsIp,DnsPort}=lists:keyfind(dns,1,InitialInfo),  
     
- %   ok=application:set_env(?MODULE,dns,{dns,DnsIp,DnsPort}),
-  %  ok=application:set_env(?MODULE,port,NodePort),
- %   ok=application:set_env(?MODULE,ip_addr,NodeIp),
-
-    %% Clear computer - remove all dirs except loader
-    %% rm -rf dir
-    %% KEEP_DIRS = dirs that shall not be scratched
-  %  ScratchResult=loader_lib:scratch_computer(KeepDirs),
-   % io:format("~p~n",[{?MODULE,?LINE,ScratchResult}]),
-    %% Read config data from kubelet.config
-    %% main url https://github.com/joqprojects/
-    %% full url https://github.com/joqprojects/service
-    %% Communication to loader via ssh
-    %% pre-loaded services [kubelet,lib, xx]
-    
-    %% download from git hub
-    %% os:cmd("git clone https://github.com/joqprojects/"++"kubelet")
-    %% git clone https://github.com/joqprojects/lib
-    %% git clone https://github.com/joqprojects/xx
-  %  LoadResult=loader_lib:load(GitUrl,InitLoadApps),
-   % io:format("~p~n",[{?MODULE,?LINE,LoadResult}]),
-    %% ok=application:start(kubelet) ....
-   % StartResult=loader_lib:start(InitLoadApps,{NodeIp,NodePort},{DnsIp,DnsPort},GitUrl,[]),
-   %
     io:format("Started Service  ~p~n",[{?MODULE}]),
     {ok, #state{}}.
 
