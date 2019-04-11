@@ -130,7 +130,7 @@ init([]) ->
     
     % Init the local dns table - implemented with ets
     kubelet_dns:init_dns_table(),
-
+   
     % config data 
     {ok,InitialInfo}=file:consult("kubelet.config"),
     {ip_addr,NodeIp}=lists:keyfind(ip_addr,1,InitialInfo),
@@ -143,6 +143,8 @@ init([]) ->
     {cert,CertFile}=lists:keyfind(cert,1,InitialInfo),
     {key,KeyFile}=lists:keyfind(key,1,InitialInfo),
 
+    kubelet_dns:update_ip_address(NodeIp,NodePort),
+    
     KubeletInfo=#kubelet_info{time_stamp="not_initiaded_time_stamp",
 			      service_id = glurk,
 			      vsn = glurk,
@@ -190,7 +192,7 @@ init([]) ->
 %% Returns: non
 %% --------------------------------------------------------------------
 handle_call({my_ip},_From, State) ->
-    Reply="localhost", % Test only glurk
+    Reply=kubelet_dns:read_ip_addr(),
     {reply, Reply, State};
 
 handle_call({loaded_services},_From, State) ->

@@ -94,3 +94,28 @@ diff_dns([ServiceInfo|T],ServiceList_2,Acc) ->
 	    NewAcc=Acc
     end,
     diff_dns(T,ServiceList_2,NewAcc).
+
+
+update_ip_address(NodeIpAddr,NodePort)->
+    R=case ets:lookup(?DNS_TABLE,node_ip_addr) of
+	  []->
+	      R1=ets:insert(?DNS_TABLE,{node_ip_addr,NodeIpAddr,NodePort}),
+	      R2=ets:lookup(?DNS_TABLE,node_ip_addr) ,
+	      io:format(" ~p~n",[{?MODULE,?LINE,R1,R2}]),
+	      R1;
+	  [Remove] ->
+	      R1=ets:delete_object(?DNS_TABLE,Remove),
+	      R2=ets:insert(?DNS_TABLE,{node_ip_addr,NodeIpAddr,NodePort}),
+	      io:format(" ~p~n",[{?MODULE,?LINE,R1,R2}]),
+	      R2      
+      end,
+    R.
+
+read_ip_addr()->
+    R=case ets:lookup(?DNS_TABLE,node_ip_addr) of
+	  []->
+	      {error,[?MODULE,?LINE,eexists,node_ip_addr]};
+	  [{node_ip_addr,NodeIpAddr,NodePort}] ->
+	      {NodeIpAddr,NodePort}
+      end,
+    R.
