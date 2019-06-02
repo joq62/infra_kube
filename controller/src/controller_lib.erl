@@ -113,7 +113,7 @@ campaign(State)->
     SurplusServices=controller_lib:surplus_services(NeededServices,L1),
   %  io:format(" SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),
     _StopResult=controller_lib:stop_applications(SurplusServices,AvailableServices,State),
-    controller_lib:nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,State#state.node_list]),
+%    controller_lib:nice_print([AvailableServices,NeededServices,StartResult,SurplusServices,State#state.node_list]),
     ok.
 
 keep_system_services([],WorkerService)->

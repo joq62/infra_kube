@@ -51,11 +51,9 @@ ssl_call(Addresses,{M,F,A},TimeOut)->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-ssl_send_call([],Msg,_,noresult)->
-    {error,[?MODULE,?LINE,worker_eexists,Msg]};
 ssl_send_call([],_,_,Reply)->
      Reply;
-ssl_send_call([{IpAddr,Port}|T],Msg,TimeOut,_)->
+ssl_send_call([{IpAddr,Port}|T],Msg,TimeOut,_Result)->
     case ssl:connect(IpAddr,Port,?CLIENT_SETUP) of
 	{ok,Socket}->
 	    case ssl:send(Socket,[term_to_binary(Msg)]) of
@@ -64,27 +62,33 @@ ssl_send_call([{IpAddr,Port}|T],Msg,TimeOut,_)->
 			{ssl,{sslsocket,_Z1,_Z2},IoList}->
 			    Bin=iolist_to_binary(IoList),
 			    NewResult=binary_to_term(Bin),
-			    NewT=[];
+			    Retry=false;
 			{error,Err} ->
 			    io:format("send error ~p~n",[{?MODULE,?LINE,Err,IpAddr,Port,Msg}]),
 			    NewResult={error,[?MODULE,?LINE,Err]},
 			    ssl:close(Socket),
-			    NewT=T
+			    Retry=true
 		    after TimeOut ->
 			    io:format("send error ~p~n",[{?MODULE,?LINE,time_out,IpAddr,Port,Msg}]),
 			    NewResult={error,[?MODULE,?LINE,tcp_timeout,IpAddr,Port,Msg]},
 			    ssl:close(Socket),
-			    NewT=T
+			    Retry=true
 		    end;
 		{error,Err}->
-		    NewT=T,
+		    Retry=true,
 		    NewResult={error,[?MODULE,?LINE,Err,IpAddr,Port,Msg]}
 	    end;
 	{error,Err}->
-	    NewT=T,
+	    Retry=true,
 	    NewResult={error,[?MODULE,?LINE,Err,IpAddr,Port,Msg]}
     end,
-    ssl_send_call(NewT,Msg,TimeOut,NewResult).
+    case Retry of
+	true->
+	    Reply=ssl_send_call(T,Msg,TimeOut,NewResult);
+	false ->
+	    Reply=NewResult
+    end,
+    Reply.
     
 %% --------------------------------------------------------------------
 %% Function: handle_info/2
