@@ -125,7 +125,7 @@ keep_system_services([ServiceId|T],Acc)->
 
 
 surplus_services([],SurplusServices)->
-    io:format(" glurk SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),  
+ %   io:format(" glurk SurplusServices  ~p~n",[{?MODULE,?LINE,SurplusServices}]),  
     SurplusServices;
 %surplus_services([X_DnsInfo|T],Acc)->
 surplus_services(X,Acc)->
@@ -294,7 +294,7 @@ missing_services(NeededServices,DnsList)->
 %% --------------------------------------------------------------------
 
 load_start_services(NeededServices,WantedNumInstances,State)->
-     io:format(" NeededServices,WantedNumInstances  ~p~n",[{?MODULE,?LINE,NeededServices,WantedNumInstances}]),
+   %  io:format(" NeededServices,WantedNumInstances  ~p~n",[{?MODULE,?LINE,NeededServices,WantedNumInstances}]),
     %% 1. Collect all service instances
     %% 2. For each service collect allready deployed instances
     %% 3. Remove Nodes that already have deployed the service from available node list 

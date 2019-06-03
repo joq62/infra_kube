@@ -39,7 +39,7 @@
 
 %% External exports -gen_server functions 
 
--export([
+-export([create/1,delete/1,nodes/0,services/0,
 	 print/1,
 	 cmd/4
 	]).
@@ -77,6 +77,18 @@ stop_monitor()->
 
 cmd(ServiceId,M,F,A)->
     gen_server:call(?MODULE, {cmd,ServiceId,M,F,A},infinity).
+
+create(Josca)->
+    gen_server:call(?MODULE, {create,Josca},infinity).
+
+delete(Josca)->
+    gen_server:call(?MODULE, {delete,Josca},infinity).
+
+nodes()->
+        gen_server:call(?MODULE, {nodes},infinity).
+services()->
+        gen_server:call(?MODULE, {services},infinity).
+
     
 %%-----------------------------------------------------------------------
 
@@ -131,6 +143,25 @@ handle_call({cmd,ServiceId,M,F,A},_From, State) ->
     Reply = rpc:call(node(),monitor_lib,cmd,[ServiceId,{M,F,A},{DnsIp,DnsPort}],1000*10),
     {reply, Reply, State};
 
+handle_call({create,Josca},_From, State) ->
+    {DnsIp,DnsPort}=State#state.dns_addr,
+    Reply = rpc:call(node(),monitor_lib,cmd,["controller",{controller,add,[Josca]},{DnsIp,DnsPort}],1000*10),
+    {reply, Reply, State};
+
+handle_call({delete,Josca},_From, State) ->
+    {DnsIp,DnsPort}=State#state.dns_addr,
+    Reply = rpc:call(node(),monitor_lib,cmd,["controller",{controller,remove,[Josca]},{DnsIp,DnsPort}],1000*10),
+    {reply, Reply, State};
+
+handle_call({nodes},_From, State) ->
+    {DnsIp,DnsPort}=State#state.dns_addr,
+    Reply = rpc:call(node(),monitor_lib,cmd,["controller",{controller,all_nodes,[]},{DnsIp,DnsPort}],1000*10),
+    {reply, Reply, State};
+
+handle_call({services},_From, State) ->
+    {DnsIp,DnsPort}=State#state.dns_addr,
+    Reply = rpc:call(node(),monitor_lib,cmd,["controller",{controller,get_all_service,[]},{DnsIp,DnsPort}],1000*10),
+    {reply, Reply, State};
 % --------------------------------------------------------------------
 %% Function: stop/0
 %% Description:
