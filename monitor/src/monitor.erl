@@ -160,7 +160,7 @@ handle_call({nodes},_From, State) ->
 
 handle_call({services},_From, State) ->
     {DnsIp,DnsPort}=State#state.dns_addr,
-    Reply = rpc:call(node(),monitor_lib,cmd,["controller",{controller,get_all_service,[]},{DnsIp,DnsPort}],1000*10),
+    Reply = rpc:call(node(),monitor_lib,cmd,["dns",{dns,get_all_instances,[]},{DnsIp,DnsPort}],1000*10),
     {reply, Reply, State};
 % --------------------------------------------------------------------
 %% Function: stop/0
